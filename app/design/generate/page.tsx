@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Script from 'next/script';
 
 const PUTER_MODEL = 'black-forest-labs/FLUX.1-schnell';
 
@@ -75,14 +76,21 @@ export default function GeneratePage() {
   const [statusIdx, setStatusIdx] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [puterReady, setPuterReady] = useState(false);
+  const [puterError, setPuterError] = useState(false);
 
   // Wait for puter.js to load
   useEffect(() => {
+    let attempts = 0;
     const check = () => {
-      if (typeof window !== 'undefined' && typeof (window as unknown as Record<string, unknown>).puter !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof (window as any).puter !== 'undefined') {
         setPuterReady(true);
       } else {
-        setTimeout(check, 300);
+        attempts++;
+        if (attempts > 60) { // 30 seconds timeout
+          setPuterError(true);
+          return;
+        }
+        setTimeout(check, 500);
       }
     };
     check();
@@ -186,6 +194,12 @@ export default function GeneratePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+      <Script 
+        src="https://js.puter.com/v2/" 
+        onLoad={() => setPuterReady(true)}
+        onError={() => setPuterError(true)}
+      />
+
       {/* Ambient blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-purple-600/8 rounded-full blur-[120px]" />
@@ -223,34 +237,60 @@ export default function GeneratePage() {
         </motion.div>
 
         {/* Initial loading (building prompts + waiting for puter) */}
+        {/* Initial loading (building prompts + waiting for puter) */}
         {(isBuilding || (!puterReady && cards.length === 0)) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex flex-col items-center justify-center py-24 gap-6"
           >
-            <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10 flex items-center justify-center">
-                <Loader2 className="w-9 h-9 text-purple-400 animate-spin" />
-              </div>
-              <div className="absolute inset-0 rounded-2xl bg-purple-500/10 blur-xl animate-pulse" />
-            </div>
-            <div className="text-center">
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={statusIdx}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="text-gray-300 font-medium"
-                >
-                  {STATUS_MESSAGES[statusIdx]}
-                </motion.p>
-              </AnimatePresence>
-              <p className="text-gray-600 text-sm mt-1">
-                {!puterReady ? 'Loading Puter.js…' : 'This may take up to 30 seconds per image'}
-              </p>
-            </div>
+            {puterError ? (
+              <>
+                <div className="w-20 h-20 rounded-2xl bg-red-900/20 border border-red-500/20 flex items-center justify-center">
+                  <div className="text-2xl">⚠️</div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-white mb-2">Service Connection Problem</h3>
+                  <p className="text-gray-400 max-w-sm mx-auto mb-6">
+                    We couldn't initialize the Puter AI service. This may be due to a slow connection or something blocking the script.
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <Button variant="outline" onClick={() => window.location.reload()}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Retry
+                    </Button>
+                    <Button onClick={() => router.push('/design/chat')}>
+                      Go Back
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-white/10 flex items-center justify-center">
+                    <Loader2 className="w-9 h-9 text-purple-400 animate-spin" />
+                  </div>
+                  <div className="absolute inset-0 rounded-2xl bg-purple-500/10 blur-xl animate-pulse" />
+                </div>
+                <div className="text-center">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={puterReady ? statusIdx : 'loading-puter'}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="text-gray-300 font-medium"
+                    >
+                      {!puterReady ? 'Initializing Puter AI...' : STATUS_MESSAGES[statusIdx]}
+                    </motion.p>
+                  </AnimatePresence>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {!puterReady ? 'Connecting to cloud generation service…' : 'This may take up to 30 seconds per image'}
+                  </p>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 

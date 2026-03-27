@@ -37,7 +37,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-slate-950">
-        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
+        <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
         <Navbar />
         <main className="flex-1">{children}</main>
       </body>
