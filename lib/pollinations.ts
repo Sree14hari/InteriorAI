@@ -26,23 +26,29 @@ export function buildImageUrl(prompt: string, options?: {
 // ─── Interior Design Prompts ─────────────────────────────────────────────────
 
 export function buildDesignPrompt(preferences: Record<string, unknown>, variationModifier = ''): string {
-  const roomType = (preferences.roomType as string) || 'living room';
-  const styles = (preferences.styles as string[])?.join(', ') || 'modern';
-  const colors = (preferences.colors as string) || 'neutral warm tones';
-  const budget = (preferences.budget as string) || 'mid-range';
-  const mood = (preferences.mood as string) || 'cozy and inviting';
+  const roomType = (preferences.roomType as string) || 'room';
+  const stylesList = (preferences.styles as string[]) || [];
+  const styles = stylesList.length > 0 ? stylesList.join(', ') : 'modern';
+  const colors = (preferences.colors as string) || 'natural and balanced palette';
+  const budget = (preferences.budget as string) || 'high-quality';
+  const mood = (preferences.mood as string) || 'pleasant atmosphere';
   const mustHave = (preferences.mustHave as string) || '';
   const avoid = (preferences.avoid as string) || '';
 
-  let prompt = `Photorealistic interior design render of a ${roomType}. `;
-  prompt += `Style: ${styles}. `;
-  prompt += `Color palette: ${colors}. `;
-  prompt += `Budget aesthetic: ${budget}. `;
-  prompt += `Mood: ${mood}. `;
-  if (mustHave) prompt += `Include: ${mustHave}. `;
-  if (avoid) prompt += `Avoid: ${avoid}. `;
+  // CORE PROMPT: Focus heavily on the specific room and style requested
+  let prompt = `A professional high-end interior design photograph of a ${styles} style ${roomType}. `;
+  
+  if (colors) prompt += `Color palette: ${colors}. `;
+  if (mood) prompt += `Vibe: ${mood}. `;
+  if (budget === 'luxury') prompt += `Ultra-luxurious premium finishings and high-end materials. `;
+  if (mustHave) prompt += `Must include: ${mustHave}. `;
+  if (avoid) prompt += `Strictly avoid: ${avoid}. `;
+  
+  // Variation and details
   if (variationModifier) prompt += `${variationModifier}. `;
-  prompt += `Professional interior design photography, perfect lighting, 4K, architectural digest quality, wide angle view showing the full room, ultra-realistic materials and textures.`;
+  
+  prompt += `Professional architectural photography, volumetric lighting, 8k resolution, photorealistic, highly detailed textures, interior design masterpiece.`;
+  
   return prompt;
 }
 
@@ -82,7 +88,10 @@ Gather these details:
 - Required items or features
 - Things to avoid
 
-After 4–6 exchanges and once you have gathered enough info, summarize the design brief in a short paragraph and end your message with exactly: [READY_TO_GENERATE]
+    After 4–6 exchanges and once you have gathered enough info, summarize the design brief in a short paragraph and end your message with exactly this hidden tag (replace with ACTUAL values gathered):
+    [DESIGN_PREFS: {"roomType": "kitchen", "styles": ["rustic", "industrial"], "colors": "warm wood and black metal", "budget": "luxury", "mood": "cozy", "mustHave": "island with seating", "avoid": "bright colors"}] [READY_TO_GENERATE]
+
+CRITICAL: Do NOT default to "modern" if the user specifies another style. If they want "rustic", ensure "rustic" is in the styles array. If they want a "kitchen", ensure "kitchen" is the roomType.
 
 Keep responses concise (2–3 sentences max per message), friendly, and conversational. Ask only 1–2 questions at a time. Make suggestions where appropriate.`;
 

@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, Wand2, RefreshCw } from 'lucide-react';
 
 const SUGGESTIONS = [
-  'Modern living room with warm tones',
-  'Minimalist bedroom, Scandinavian style',
   'Industrial kitchen, dark palette',
   'Bohemian home office with plants',
+  'Scandinavian bedroom, airy vibes',
+  'Traditional library with warm wood',
+  'Minimalist bathroom with stone',
 ];
 
 export function ChatContainer() {
@@ -27,42 +28,32 @@ export function ChatContainer() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Extract preferences from the AI's summary (simple keyword extraction)
-  const extractPreferences = (text: string) => {
+  // Extract preferences from the AI's response
+  const extractPreferences = (text: string, aiPrefs?: any) => {
+    if (aiPrefs && typeof aiPrefs === 'object') {
+      updatePreferences(aiPrefs);
+      return;
+    }
+
+    // Fallback: keyword extraction
     const lower = text.toLowerCase();
     const prefs: Record<string, unknown> = {};
 
-    // Room type
     const roomTypes = ['living room', 'bedroom', 'kitchen', 'bathroom', 'office', 'dining room', 'studio'];
-    for (const r of roomTypes) {
-      if (lower.includes(r)) { prefs.roomType = r; break; }
-    }
+    for (const r of roomTypes) if (lower.includes(r)) { prefs.roomType = r; break; }
 
-    // Styles
     const styleKeywords = ['modern', 'minimalist', 'bohemian', 'industrial', 'scandinavian', 'traditional', 'contemporary', 'rustic', 'eclectic'];
     const foundStyles = styleKeywords.filter((s) => lower.includes(s));
     if (foundStyles.length > 0) prefs.styles = foundStyles;
 
-    // Budget
-    if (lower.includes('budget') || lower.includes('affordable')) prefs.budget = 'budget';
-    else if (lower.includes('luxury') || lower.includes('high-end') || lower.includes('premium')) prefs.budget = 'luxury';
-    else prefs.budget = 'mid-range';
+    if (lower.includes('budget')) prefs.budget = 'budget';
+    else if (lower.includes('luxury') || lower.includes('high-end')) prefs.budget = 'luxury';
+    else if (lower.includes('mid-range')) prefs.budget = 'mid-range';
 
-    // Mood
-    const moods = ['cozy', 'airy', 'warm', 'cool', 'dramatic', 'serene', 'vibrant', 'calm', 'intimate'];
-    for (const m of moods) {
-      if (lower.includes(m)) { prefs.mood = m; break; }
-    }
+    const moods = ['cozy', 'airy', 'warm', 'cool', 'dramatic', 'serene', 'vibrant', 'calm'];
+    for (const m of moods) if (lower.includes(m)) { prefs.mood = m; break; }
 
-    // Colors
-    const colorKeywords = ['warm', 'cool', 'neutral', 'earthy', 'dark', 'light', 'bold', 'pastels', 'monochromatic'];
-    for (const c of colorKeywords) {
-      if (lower.includes(c)) { prefs.colors = `${c} tones`; break; }
-    }
-
-    if (Object.keys(prefs).length > 0) {
-      updatePreferences(prefs as Parameters<typeof updatePreferences>[0]);
-    }
+    if (Object.keys(prefs).length > 0) updatePreferences(prefs as any);
   };
 
   const sendMessage = async (content: string) => {
@@ -79,13 +70,15 @@ export function ChatContainer() {
       });
 
       const data = await res.json();
-      const reply = data.message ?? 'Sorry, something went wrong. Please try again.';
+      const reply = data.message ?? 'Sorry, I couldn\'t respond.';
 
       addMessage({ role: 'assistant', content: reply });
 
-      if (data.readyToGenerate) {
-        extractPreferences(reply);
-        setReadyToGenerate(true);
+      // Preferences can be extract on every turn now if AI provided them, 
+      // but primarily when ready to generate
+      if (data.readyToGenerate || data.extractedPrefs) {
+        extractPreferences(reply, data.extractedPrefs);
+        if (data.readyToGenerate) setReadyToGenerate(true);
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -100,6 +93,7 @@ export function ChatContainer() {
 
   const handleReset = () => {
     clearMessages();
+    updatePreferences({ roomType: '', styles: [], colors: '', budget: '', mood: '', mustHave: '', avoid: '' });
     setReadyToGenerate(false);
   };
 
